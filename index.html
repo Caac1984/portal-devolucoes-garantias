@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Portal de Devolução e Garantia</title>
+    <link rel="icon" type="image/x-icon" href="icon-192.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        :root { 
+            --cor-azul: #1a4a7a; --cor: #F2C300; --borda: #d0d5dd; 
+            --erro: #dc2626; --verde: #28a745; --base-font: 13px; 
+        }
+        
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0; padding: 15px; 
+            background: #eef2f5; 
+            color: #101828; 
+            font-size: var(--base-font); 
+            position: relative;
+            min-height: 100vh;
+        }
+
+        .bg { position: fixed; inset: 0; z-index: -1; background: linear-gradient(152deg, #fbff05, #0d0d0d, #fbff05); opacity: 0.95; }
+        .container { max-width: 1240px; margin: auto; }
+
+        /* LOADING OVERLAY / SPINNER */
+        #loadingOverlay {
+            position: fixed; inset: 0; background: rgba(255, 255, 255, 0.85); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px;
+            transition: opacity 0.3s ease;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid #eef2f5; border-top: 5px solid var(--cor-azul);
+            border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { font-weight: bold; color: var(--cor-azul); font-size: 1.1em; letter-spacing: 0.5px; }
+        
+        .font-controls { 
+            display: flex; 
+            background: #f2f4f7; 
+            padding: 7px; 
+            border-radius: 6px; 
+            gap: 5px; 
+            align-items: center;
+        }
+        .btn-font {
+            background: white;
+            border: 1px solid var(--borda);
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--cor-azul);
+            font-size: 12px;
+            transition: 0.2s;
+        }
+        .btn-font:hover { background: var(--cor-azul); color: white; }
+
+        .logo-cor { height: 45px; width: auto; display: block; }
+
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 12px 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-bottom: 5px solid var(--cor-azul); }
+        .stat-card b { font-size: 0.85em; text-transform: uppercase; color: #444; }
+        .stat-card span { font-size: 1.6em; font-weight: 800; color: var(--cor-azul); }
+
+        .card-controls {display: flex; gap: 8px; align-items: center; flex-wrap: wrap;}
+
+        .header { background: white; padding: 10px 25px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,.15); border-top: 8px solid var(--cor); margin-bottom: 15px; }
+        .main-card { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 5px solid var(--cor-azul); }
+        
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .field { display: flex; flex-direction: column; }
+        label { font-size: 0.8em; margin-bottom: 4px; font-weight: 800; color: #475467; text-transform: uppercase; }
+        input, select, textarea { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 1em; width: 100%; box-sizing: border-box; }
+        input[readonly] { background-color: #f2f4f7; }
+
+        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #f8f9fa; padding: 10px; border-radius: 8px; flex-wrap: wrap; gap: 10px; }
+        
+		
+		.registro-item { background: white; border: 1px solid #eee; border-radius: 10px; padding: 15px; margin-bottom: 12px; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
+        .grid-header-list { width: auto; max-width: 1200px; min-width: 900px; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; padding-right: 110px;    }
+        .label-box b { font-size: 0.75em; color: #666; text-transform: uppercase; display: block; margin-bottom: 2px; }
+        .label-box span { font-weight: 600; color: #111; word-break: break-all; }
+        
+        .status-badge { padding: 4px 12px; border-radius: 4px; font-weight: 800; font-size: 0.75em; text-align: center; display: inline-block; }
+        .st-analise { background: #fef08a; color: #854d0e; }
+        .st-aguardando { background: #fed7aa; color: #9a3412; }
+        .st-finalizado { background: #228B22; color: #00FF00; }
+
+        .st-pendente { background: #FFD700; color: #854d0e; }
+        .st-solicitado { background: #00FFFF; color: #008b8b; }
+        .st-concedida { background: #7CFC00; color: #166534; }
+        .st-padrao { background: #f3f4f6; color: #374151; }
+	    .st-devolucao { 
+  		  background: #e2e8f0; 
+ 		   color: #475467; 
+ 		   border: 1px solid #cbd5e1;
+			}
+
+	/* Container do Menu */
+		.nav-menu {
+   		 display: flex;
+   		 gap: 8px;
+   		 background: #A9A9A9;
+   		 padding: 5px;
+   		 border-radius: 10px;
+		}
+
+/* Botões de Navegação (Estilo Compacto) */
+		.nav-btn {
+	    text-decoration: none;
+	    color: #00008B;
+	    font-weight: bold;
+	    font-size: 0.85em;
+	    padding: 8px 15px;
+	    border-radius: 8px;
+	    transition: all 0.3s ease;
+	    display: flex;
+	    align-items: center;
+	    gap: 5px;
+		}
+		
+		.nav-btn:hover {
+		    background: #e2e5e9;
+		    color: var(--cor-azul);
+		}
+		
+		.nav-btn.active {
+		    background: white;
+		    color: var(--cor-azul);
+		    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+		}
+		
+
+
+#listaCards {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+#listaCards::-webkit-scrollbar { width: 8px; }
+#listaCards::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+#listaCards::-webkit-scrollbar-thumb { background: #1a4a7a; border-radius: 10px; }
+#listaCards::-webkit-scrollbar-thumb:hover { background: #163d63; }
+
+        .item-details { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd; font-size: 0.9em; color: #444; line-height: 1.6; margin-right: 40px;}
+
+        .action-column { position: absolute; right: 15px; top: 12px; display: flex; flex-direction: column; gap: 6px; }
+        .btn-circle { width: 32px; height: 32px; border-radius: 50%; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        .actions { margin-top: 20px; display: flex; gap: 10px; }
+        .btn { padding: 10px 16px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.85em; }
+        .primary { background: var(--cor-azul); color: white; }
+        .secondary { background: var(--cor); color: var(--cor-azul); }
+        .success { background: var(--verde); color: white; }
+        .danger { background: #fee2e2; color: var(--erro); }
+        .hidden { display: none; }
+        
+        #toast { visibility: hidden; min-width: 250px; background: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 3000; right: 30px; bottom: 30px; }
+        #toast.show { visibility: visible; }
+
+        #modalView {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center; z-index: 5000;
+        }
+        .modal-content {
+            background: white; width: 90%; max-width: 800px; max-height: 90vh;
+            border-radius: 12px; overflow-y: auto; padding: 25px; position: relative;
+        }
+        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
+        .modal-field b { display: block; font-size: 0.7em; color: var(--cor-azul); text-transform: uppercase; }
+        .modal-field span { font-weight: 600; font-size: 1.1em;  }
+
+        @media print {
+            body > *:not(#modalView) { display: none !important; }
+            #modalView { display: flex !important; position: absolute; top:0; left:0; background: white; }
+            .modal-content { width: 100%; box-shadow: none; }
+            .no-print { display: none !important; }
+        }
+
+/* Dropdown */
+.dropdown { position: relative; display: inline-block; }
+.dropbtn { background: #000080; color: #FFFFFF; font-weight: bold; font-size: 1.2em; padding: 8px 15px; border-radius: 8px; border: none; cursor: pointer; transition: 0.3s; }
+.dropbtn:hover { background: #87CEFA; color: #FFFFFF; }
+.dropdown-content { display: none; position: absolute; background: white; min-width: 180px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1000; overflow: hidden; }
+.dropdown-content a { color: #333; padding: 10px 12px; text-decoration: none; display: block; font-size: 1.1em; transition: 0.2s; }
+.dropdown-content a:hover { background: #87CEFA; }
+.dropdown:hover .dropdown-content { display: block; }
+
+    </style>
+</head>
+<body>
+<div class="bg"></div>
+<div id="toast"></div>
+
+<!-- TELA DE CARREGAMENTO (SPINNER) -->
+<div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Sincronizando dados, por favor aguarde...</div>
+</div>
+
+<div id="modalView">
+    <div class="modal-content">
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid var(--cor-azul); padding-bottom:10px;">
+            <h2 style="margin:0; color: var(--cor-azul);">Ficha de Devolução / Garantia</h2>
+            <div class="no-print">
+                <button class="btn primary" onclick="window.print()">🖨️ Imprimir</button>
+                <button class="btn secondary" onclick="document.getElementById('modalView').style.display='none'">✖ Fechar</button>
+            </div>
+        </div>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<div class="container">
+
+   <div class="header">
+	<div class="dropdown">
+   	 <button class="dropbtn">☰ Menu</button>
+    		<div class="dropdown-content">
+        	<a href="Compras.html">📊 Setor Compras</a>
+        	<a href="Dashboard.html">📊 Dashboard</a>
+   	 </div>
+	</div>
+        <img src="insira sua Logo.png" alt="Insira sua Logo" class="logo">
+        <h1 style="font-size: 1.3em; color: var(--cor-azul); margin:0;">Portal de Devolução & Garantia</h1>
+    </div>
+
+    <div id="contadores" class="dashboard hidden">
+        <div class="stat-card"><b>Total</b><span id="txtTotal">0</span></div>
+        <div class="stat-card"><b>Finalizado</b><span id="txtFinalizado">0</span></div>
+        <div class="stat-card"><b>Em Análise</b><span id="txtAnalise">0</span></div>
+        <div class="stat-card"><b>Aguardando</b><span id="txtAguardando">0</span></div>
+	<div class="stat-card"><b>Denegada</b><span id="txtDenegada">0</span></div>
+	<div class="stat-card"><b>Devolvido ao Cliente</b><span id="txtDevolvido ao Cliente">0</span></div>
+    </div>
+
+    <div id="formTela" class="main-card">
+        <div id="statusEdicao" class="hidden" style="color: var(--verde); font-weight: bold; margin-bottom: 15px;">✏️ MODO EDIÇÃO ATIVO</div>
+        <div class="grid-form">
+            <div class="field" oninput="event.target.value = event.target.value.toUpperCase()" style="text-transform: uppercase;"><label>Cliente</label><input placeholder="Cliente" id="cliente"></div>
+            <div class="field" oninput="event.target.value = event.target.value.toUpperCase()" style="text-transform: uppercase;"><label>Vendedor</label><input placeholder="Vendedor" id="vendedor"></div>
+            <div class="field"><label>NF Devolução</label><input placeholder="NF Devolução" id="nf"></div>
+            <div class="field"><label>Data NF Dev</label><input id="data_nf" type="date"></div>
+            <div class="field"><label>NF Compra</label><input placeholder="NF Compra" id="nf_compra"></div>
+            <div class="field"><label>Data NF Compra</label><input id="data_nf_compra" type="date"></div>
+            <div class="field"><label>Data Contato</label><input id="data_contato" type="date"></div>
+            <div class="field" oninput="event.target.value = event.target.value.toUpperCase()" style="text-transform: uppercase;"><label>Colaborador / Cadastrador</label><input placeholder="Colaborador" id="cadastrador"></div>
+                
+            <div class="field"><label>Tipo</label><select id="tipo">
+                <option>GARANTIA</option>
+                <option>DEVOLUÇÃO</option>
+            </select></div>
+            <div class="field"><label>Crédito</label><select id="credito">
+                <option>ENTRADA + CREDITO</option>
+                <option>ENTRADA + CREDITO + REMESSA</option>
+                <option>DENEGADA</option>
+                <option>OUTROS</option>
+            </select></div>
+            <div class="field"><label>Status</label>
+                <select id="status_proc">
+                    <option>AGUARDANDO <br> PRODUTO E NF</option>
+                    <option>AGUARDANDO NF</option>
+                    <option>EM ANALISE</option>
+                    <option>FINALIZADO</option>
+                    <option>DENEGADA</option>
+                    <option>DEVOLVIDO AO CLIENTE</option>
+                </select></div>
+  <div class="field"><label>Setor Compras (Garantia)</label>
+                <select id="setor_compras">
+                    <option>SOLICITADO</option>
+                    <option>PENDENTE</option>
+                    <option>CONCEDIDA</option>
+<option value="NÃO APLICÁVEL (Devolução)">NÃO APLICÁVEL (Devolução)</option>
+                </select></div>
+        </div>
+
+        <div id="sessaoProdutos" style="margin-top: 20px;">
+            <div class="prod-container" style="border: 1px solid #eee; padding: 15px; border-radius: 8px; background: #fafafa; margin-bottom: 10px;">
+                <div class="grid-form">
+                    <div class="field"><label>Código Item</label><input placeholder="Código Item" class="p-codigo" onblur="buscarProd(this)"></div>
+                    <div class="field"><label>Descrição</label><input class="p-descricao" readonly></div>
+                    <div class="field"><label>Marca</label><input class="p-marca" readonly></div>
+                    <div class="field"><label>Referência</label><input class="p-referencia" readonly></div>
+                    <div class="field"><label>Qtd</label><input placeholder="0" min="0" class="p-qt" type="number"></div>
+                    <div class="field"><label>Valor Unit.</label><input placeholder="0,00" class="p-valor" onblur="this.value = fmtMoeda(this.value)"></div>
+                    <div class="field" style="grid-column: span 2;"><label>Nº Série</label>
+                        <div class="lista-series"><input class="p-serie" style="margin-bottom: 5px; width: 100%;"></div>
+                        <button class="btn secondary" onclick="addSerie(this)" style="font-size: 12px; cursor:pointer;">+ Série</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn secondary" style="width: 20%; margin-top: 10px;" onclick="addProd()">+ Adicionar Produto</button>
+        
+        <div class="field" oninput="event.target.value = event.target.value.toUpperCase()" style="text-transform: uppercase; margin-top: 20px;">
+            <label>Motivo</label>
+            <textarea id="motivo" rows="2"></textarea>
+        </div>
+
+        <div class="actions">
+            <button id="btnSalvar" class="btn primary" onclick="salvarTudo()">💾 Salvar Tudo</button>
+            <button class="btn secondary" onclick="abrirLista()">📋 Planilha</button>
+            <button class="btn danger" onclick="location.reload()">🧹 Limpar</button>
+        </div>
+    </div>
+
+    <div id="listaTela" class="main-card hidden">
+        <div class="toolbar">
+            <h2 style="margin:0; font-size: 1.2em; color: var(--cor-azul);">Registros</h2>
+            <div class="card-controls">
+            <div class="font-controls">
+                <button class="btn-font" onclick="ajustarFonte(-1)">A-</button>
+                <button class="btn-font" onclick="ajustarFonte(1)">A+</button>
+            </div>
+
+            <select id="filtroStatus" onchange="processarFiltros()" style="width: auto; padding: 6px; font-size: 12px; border-radius: 4px; border: 1px solid var(--borda);">
+                <option value="todos">Todos Status</option>
+                <option value="EM ANALISE">EM ANALISE</option>
+                <option value="FINALIZADO">FINALIZADO</option>
+                <option value="AGUARDANDO">AGUARDANDO...</option>
+                <option value="DENEGADA">DENEGADA</option>
+                <option value="DEVOLVIDO AO CLIENTE">DEVOLVIDO AO CLIENTE</option>
+            </select>
+
+            <select id="filtroOrdem" onchange="processarFiltros()" style="width: auto; padding: 7px; font-size: 12px; border-radius: 4px; border: 1px solid var(--borda);">
+                <option value="recente">Mais Recentes</option>
+                <option value="antigo">Mais Antigos</option>
+                <option value="cliente">Cliente (A-Z)</option>
+            </select>
+
+            <input type="text" id="campoBusca" onkeyup="processarFiltros()" placeholder="Buscar..." style="padding: 8px 10px; width: 110px; border-radius: 6px; border: 1px solid var(--borda); font-size: 12px;">
+
+            <button class="btn secondary" onclick="sincronizar()">🔄 Atualizar</button>
+            <button class="btn primary" onclick="location.reload()" style="background: #1a4a7a;">🏠 Início</button>
+            <button class="btn success" onclick="voltar()">⬅ Voltar</button>
+	
+            <div class="filter-group">
+               <div class="filter-group" style="display: flex; gap: 5px; align-items: center;">
+                    <input type="date" id="dataInicio" onchange="processarFiltros()" oninput="processarFiltros()" style="padding: 6px; width: 120px; border-radius: 4px; border: 1px solid var(--borda); font-size: 11px;">
+                    <span style="font-size: 10px; font-weight: bold;">ATÉ</span>
+                    <input type="date" id="dataFim" onchange="processarFiltros()" oninput="processarFiltros()" style="padding: 6px; width: 120px; border-radius: 4px; border: 1px solid var(--borda); font-size: 11px;">
+                </div>
+            </div>
+        </div>
+        </div>
+        <div id="listaCards"></div>
+    </div>
+</div>
+
+<script>
+const WEB_APP_URL = "insira o caminho do google planilha aqui"; 
+    let dadosCache = [];
+    let editandoIdx = null;
+
+    // Funções para controlar o Spinner de carregamento
+    function mostrarLoading() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+
+    function ocultarLoading() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+function fmtMoeda(valor) {
+    if (valor === undefined || valor === null || valor === "") return "0,00";
+
+    let n = valor;
+    if (typeof valor === 'string') {
+        n = parseFloat(valor.replace(/[R$\s.]/g, '').replace(',', '.'));
+    }
+
+    if (typeof valor === 'number') {
+        return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    let stringLimpa = valor.toString().trim();
+    
+    if (stringLimpa.includes(',') && stringLimpa.includes('.')) {
+        stringLimpa = stringLimpa.replace(/\./g, '').replace(',', '.');
+    } 
+    else if (stringLimpa.includes(',')) {
+        stringLimpa = stringLimpa.replace(',', '.');
+    }
+
+    let num = parseFloat(stringLimpa);
+    return isNaN(num) ? "0,00" : num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function prepararDataParaInput(dataStr) {
+    if (!dataStr) return "";
+    let s = String(dataStr).trim();
+    
+    if (s.includes('/')) {
+        const partes = s.split('/');
+        if (partes.length === 3) {
+            return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+        }
+    }
+    return s.split('T')[0];
+}
+
+function visualizarCadastro(realIdx) {
+    const item = dadosCache.find(d => d.realIdx === realIdx);
+    if (!item) return;
+
+    const modalBody = document.getElementById("modalBody");
+    
+    modalBody.innerHTML = `
+        <div class="modal-grid" style="grid-template-columns: 1fr;">
+            <div class="modal-field"><b>Cliente</b><span>${item.cliente || '---'}</span></div>
+        </div>
+        <div class="modal-grid">
+            <div class="modal-field"><b>Código Item</b><span>${item.codigo || '---'}</span></div>
+            <div class="modal-field"><b>Descrição</b><span>${item.descricao || '---'}</span></div>
+        </div>
+        <div class="modal-grid">
+            <div class="modal-field"><b>Marca</b><span>${item.marca || '---'}</span></div>
+            <div class="modal-field"><b>Referência</b><span>${item.referencia || '---'}</span></div>
+        </div>
+        <div class="modal-grid">
+            <div class="modal-field"><b>Quantidade</b><span>${item.qt || '0'}</span></div>
+            <div class="modal-field"><b>Valor Unitário</b><span>${fmtMoeda(item.valor)}</span></div>
+        </div>
+        <div class="modal-grid">
+            <div class="modal-field"><b>NF Devolução</b><span>${item.nf || '---'}</span></div>
+            <div class="modal-field"><b>Data NF Devolução</b><span>${fmtDataBR(item.data_nf)}</span></div>
+        </div>
+        <div class="modal-grid">
+            <div class="modal-field"><b>NF Compra</b><span>${item.nf_compra || '---'}</span></div>
+            <div class="modal-field"><b>Data NF Compra</b><span>${fmtDataBR(item.data_nf_compra)}</span></div>
+        </div>
+        <div class="modal-grid">
+            <div class="modal-field"><b>Data Contato</b><span>${fmtDataBR(item.data_contato)}</span></div>
+            <div class="modal-field"><b>Nº Série</b><span>${item.n_serie || '---'}</span></div>
+        </div>
+        <div class="modal-grid">
+            <div class="modal-field"><b>Vendedor</b><span>${item.vendedor || '---'}</span></div>
+            <div class="modal-field"><b>Colaborador</b><span>${item.cadastrador || '---'}</span></div>
+        </div>
+        <div class="modal-grid">
+            <div class="modal-field"><b>Tipo</b><span>${item.tipo || '---'}</span></div>
+            <div class="modal-field"><b>Status do Processo</b><span>${item.status_proc || '---'}</span></div>
+        </div>
+        <div class="modal-grid" style="border:none;">
+            <div class="modal-field"><b>Crédito</b><span>${item.credito || '---'}</span></div>
+            <div class="modal-field"><b>Setor Compras</b><span>${item.setor_compras || '---'}</span></div>
+        </div>
+        <div class="modal-field" style="margin-top:10px; padding:15px; background:#f8f9fa; border-radius:8px;">
+            <b>Motivo</b><span>${item.motivo || '---'}</span>
+        </div>
+    `;
+    document.getElementById("modalView").style.display = "flex";
+}
+
+    function ajustarFonte(delta) {
+        const root = document.documentElement;
+        const currentSize = parseFloat(getComputedStyle(root).getPropertyValue('--base-font'));
+        const newSize = Math.min(Math.max(currentSize + delta, 10), 22);
+        root.style.setProperty('--base-font', newSize + 'px');
+    }
+
+    function fmtDataBR(dataStr) {
+        if (!dataStr || dataStr.length < 10) return "---";
+        const parts = dataStr.includes('T') ? dataStr.split('T')[0].split('-') : dataStr.split('-');
+        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dataStr;
+    }
+
+    function showToast(m) { const x = document.getElementById("toast"); x.innerText = m; x.className = "show"; setTimeout(() => x.className = "", 3000); }
+
+    function addSerie(btn) {
+        const input = document.createElement("input");
+        input.className = "p-serie";
+        input.style.cssText = "margin-bottom: 5px; width: 100%; border: 1px solid var(--borda); padding: 8px; border-radius: 6px;";
+        btn.previousElementSibling.appendChild(input);
+    }
+
+    function addProd() {
+        const clone = document.querySelector(".prod-container").cloneNode(true);
+        clone.querySelectorAll("input").forEach(i => i.value = "");
+        clone.querySelector(".lista-series").innerHTML = '<input class="p-serie" style="margin-bottom: 5px; width: 100%; border: 1px solid var(--borda); padding: 8px; border-radius: 6px;">';
+        document.getElementById("sessaoProdutos").appendChild(clone);
+    }
+
+    async function buscarProd(input) {
+        if(!input.value) return;
+        try {
+            const res = await fetch(`${WEB_APP_URL}?action=getProduto&codigo=${input.value}`);
+            const d = await res.json();
+            const pai = input.closest(".prod-container");
+            if (d && !d.error) {
+                pai.querySelector(".p-descricao").value = d.descricao || "";
+                pai.querySelector(".p-marca").value = d.marca || "";
+                pai.querySelector(".p-referencia").value = d.referencia || "";
+            }
+        } catch(e) { console.error(e); }
+    }
+
+async function salvarTudo() {
+    const cliente = document.getElementById("cliente").value;
+    if(!cliente) return alert("Informe o cliente");
+    
+    const btn = document.getElementById("btnSalvar");
+    btn.disabled = true; 
+    btn.innerText = "Gravando...";
+
+    const fixos = {
+        cliente: cliente,
+        vendedor: document.getElementById("vendedor").value,
+        nf: document.getElementById("nf").value, 
+        data_nf: document.getElementById("data_nf").value,
+        nf_compra: document.getElementById("nf_compra").value, 
+        data_nf_compra: document.getElementById("data_nf_compra").value,
+        data_contato: document.getElementById("data_contato").value, 
+        cadastrador: document.getElementById("cadastrador").value,
+        tipo: document.getElementById("tipo").value, 
+        credito: document.getElementById("credito").value,
+        status_proc: document.getElementById("status_proc").value, 
+        setor_compras: document.getElementById("setor_compras").value, 
+        motivo: document.getElementById("motivo").value.trim(),
+    };
+
+    const prods = document.querySelectorAll(".prod-container");
+    
+    try {
+        for (let b of prods) {
+            const series = Array.from(b.querySelectorAll(".p-serie")).map(i => i.value).filter(v => v).join(" | ");
+            const payload = { 
+                ...fixos,
+                codigo: b.querySelector(".p-codigo").value, 
+                descricao: b.querySelector(".p-descricao").value,
+                marca: b.querySelector(".p-marca").value, 
+                referencia: b.querySelector(".p-referencia").value,
+                qt: b.querySelector(".p-qt").value, 
+                valor: b.querySelector(".p-valor").value, 
+                n_serie: series
+            };
+
+            let url = WEB_APP_URL;
+            if (editandoIdx !== null) { url += `?action=edit&idx=${editandoIdx}`; }
+
+            await fetch(url, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+        }
+        alert(editandoIdx !== null ? "Registro atualizado! ✅" : "Salvo com sucesso!");
+        editandoIdx = null; location.reload();
+    } catch(e) { 
+        alert("Erro na operação."); 
+        btn.disabled = false; btn.innerText = "💾 Salvar Tudo"; 
+    }
+}
+
+    async function sincronizar() {
+        mostrarLoading();
+        try {
+            const res = await fetch(`${WEB_APP_URL}?t=${Date.now()}`);
+            dadosCache = await res.json();
+            atualizarDashboard(dadosCache);
+            processarFiltros();
+        } catch(e) { 
+            console.error(e);
+            const box = document.getElementById("listaCards");
+            if(box) box.innerHTML = "<p style='color:red'>Erro ao carregar.</p>"; 
+        } finally {
+            ocultarLoading();
+        }
+    }
+
+let timeoutFiltro;
+
+function processarFiltros() {
+    clearTimeout(timeoutFiltro);
+
+    timeoutFiltro = setTimeout(() => {
+        if (!dadosCache || dadosCache.length === 0) return;
+
+        let listaOriginal = JSON.parse(JSON.stringify(dadosCache));
+        let listaFiltrada = [...listaOriginal];
+        
+        const termo = (document.getElementById("campoBusca")?.value || "").toLowerCase().trim();
+        const statusFiltro = (document.getElementById("filtroStatus")?.value || "TODOS").toUpperCase();
+
+        const inicio = document.getElementById("dataInicio").value;
+        const fim = document.getElementById("dataFim").value;
+
+        function normalizar(data){
+            if(!data) return null;
+            let s = String(data).trim();
+            if(s.includes("/")){
+                let [d,m,y] = s.split("/");
+                return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+            }
+            if(s.includes("-")){
+                return s.substring(0,10);
+            }
+            return null;
+        }
+
+        if(inicio || fim){
+            listaFiltrada = listaFiltrada.filter(reg => {
+                const datas = [
+                    normalizar(reg.data_nf)
+                ].filter(Boolean);
+
+                for(let d of datas){
+                    if(inicio && d < inicio) continue;
+                    if(fim && d > fim) continue;
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        if (termo.length > 0) {
+            const termoNumerico = termo.replace(/[.,]/g, "");
+            listaFiltrada = listaFiltrada.filter(d => {
+                let vRaw = String(d.valor || "0").replace(',', '.');
+                let valorNum = parseFloat(vRaw);
+                const valorBancoLimpo = isNaN(valorNum) ? "" : valorNum.toFixed(2).replace(/[.,]/g, "");
+                const campos = [
+                    d.cliente, d.codigo, d.descricao, d.marca, d.referencia, d.qt, 
+                    d.nf, d.data_nf, d.valor, d.vendedor, d.nf_compra, d.data_nf_compra, 
+                    d.data_contato, d.n_serie, d.cadastrador, d.tipo, d.credito, 
+                    d.status_proc, d.motivo, d.setor_compras
+                ];
+                const textoUnico = campos.map(v => String(v || "").toLowerCase()).join(" ");
+                return textoUnico.includes(termo) || (valorBancoLimpo !== "" && valorBancoLimpo.includes(termoNumerico));
+            });
+        }
+
+        if (statusFiltro !== "TODOS") {
+            listaFiltrada = listaFiltrada.filter(d => {
+                const s = String(d.status_proc || "").toUpperCase();
+                return statusFiltro === "AGUARDANDO" ? s.includes("AGUARDANDO") : s.includes(statusFiltro);
+            });
+        }
+
+        const ordem = document.getElementById("filtroOrdem")?.value || "recente";
+
+        if (ordem === "recente") {
+            listaFiltrada.sort((a, b) => (Number(b.realIdx) || 0) - (Number(a.realIdx) || 0));
+        }
+        else if (ordem === "antigo") {
+            listaFiltrada.sort((a, b) => (Number(a.realIdx) || 0) - (Number(b.realIdx) || 0));
+        }
+
+        renderizar(listaFiltrada);
+        atualizarDashboard(listaFiltrada);
+
+    }, 500); 
+}
+
+ function renderizar(listaParaExibir) {
+    const box = document.getElementById("listaCards");
+    if (!box) return;
+
+    box.innerHTML = "";
+    
+    if (!listaParaExibir || listaParaExibir.length === 0) {
+        box.innerHTML = "<div style='text-align:center; padding:50px; width:100%;'><h3>Nenhum registro encontrado para este filtro.</h3></div>";
+        return;
+    }
+
+    listaParaExibir.forEach((item) => {
+        const idUnico = item.realIdx;
+        
+        let stStyle = "st-analise";
+        const status = (item.status_proc || "").toUpperCase();
+        if(status.includes("AGUARDANDO")) stStyle = "st-aguardando";
+        if(status === "FINALIZADO") stStyle = "st-finalizado";
+
+        let comprasStyle = "st-padrao";
+        const statusCompras = (item.setor_compras || "").toUpperCase();
+        if (statusCompras === "PENDENTE") comprasStyle = "st-pendente";
+        else if (statusCompras === "SOLICITADO") comprasStyle = "st-solicitado";
+        else if (statusCompras === "CONCEDIDA") comprasStyle = "st-concedida";
+        else if (statusCompras.includes("NÃO APLICÁVEL") || statusCompras.includes("DEVOLUÇÃO"))
+            comprasStyle = "st-devolucao";
+
+        const card = document.createElement("div");
+        card.className = "registro-item";
+        card.innerHTML = `
+            <div class="grid-header-list ">
+                <div class="label-box"><b>CLIENTE</b><span>${item.cliente || '---'}</span></div>
+                <div class="label-box"><b>QUANTIDADE</b><span>${item.qt || '0'}</span></div>
+                <div class="label-box"><b>VALOR</b><span>${fmtMoeda(item.valor)}</span></div>
+                <div class="label-box"><b>TIPO</b><span>${item.tipo || '0'}</span></div>
+                <div class="label-box"><b>CREDITO</b><span>${item.credito || '---'}</span></div>
+                <div class="label-box"><b>STATUS</b><span class="status-badge ${stStyle}">${item.status_proc || 'S/ STATUS'}</span></div>
+                <div class="label-box"><b>SETOR COMPRAS</b><span class="status-badge ${comprasStyle}">${item.setor_compras || '---'}</span></div>
+            </div>
+            <div class="item-details"> 
+                <b>Código:</b> ${item.codigo || '---'} | <b>Descrição:</b> ${item.descricao || '---'}  | <b>Marca:</b> ${item.marca || '---'} | <b>Referência:</b> ${item.referencia || '---'}<br> 
+                <b>Nº Série:</b> ${item.n_serie || '---'} |
+                <b>NF Compra:</b> ${item.nf_compra || '---'} | 
+                <b>Data NF Compra:</b> ${fmtDataBR(item.data_nf_compra) || '---'} | 
+                <b>NF Dev:</b> ${item.nf || '---'} | 
+                <b>Data NF Dev:</b> ${fmtDataBR(item.data_nf) || '---'} | 
+                <b>Data Contato:</b> ${fmtDataBR(item.data_contato) || '---'} <br>
+                <b>Vendedor:</b> ${item.vendedor || '---'} | 
+                <b>Colaborador:</b> ${item.cadastrador || '---'} | 
+                <b>Motivo:</b> ${item.motivo || '---'}
+            </div>
+            <div class="action-column">
+                <button class="btn-circle" style="background: #1a4a7a;" onclick="visualizarCadastro(${idUnico})">👁️</button>
+                <button class="btn-circle" style="background: #f2c300; color: #000;" onclick="prepararEdicao(${idUnico})">✏️</button>
+                <button class="btn-circle" style="background: #dc2626;" onclick="excluir(${idUnico})">🗑️</button>
+            </div>
+        `;
+        box.appendChild(card);
+    });
+}
+
+    function prepararEdicao(realIdx) {
+    const item = dadosCache.find(d => d.realIdx === realIdx);
+    if (!item) return;
+
+    editandoIdx = item.realIdx;
+    voltar();
+
+    document.getElementById("cliente").value = item.cliente || "";
+    document.getElementById("vendedor").value = item.vendedor || "";
+    document.getElementById("nf").value = item.nf || "";
+    document.getElementById("data_nf").value = prepararDataParaInput(item.data_nf) || "";
+    document.getElementById("nf_compra").value = item.nf_compra || "";
+    document.getElementById("data_nf_compra").value = prepararDataParaInput(item.data_nf_compra) || "";
+    document.getElementById("data_contato").value = prepararDataParaInput(item.data_contato) || "";
+    document.getElementById("status_proc").value = item.status_proc || "";
+    document.getElementById("credito").value = item.credito || "";
+    document.getElementById("motivo").value = item.motivo || "";
+    document.getElementById("cadastrador").value = item.cadastrador || "";
+    document.getElementById("tipo").value = item.tipo || "";
+    document.getElementById("setor_compras").value = item.setor_compras || "";
+
+    const pContainer = document.querySelector(".prod-container");
+    pContainer.querySelector(".p-codigo").value = item.codigo || "";
+    pContainer.querySelector(".p-descricao").value = item.descricao || "";
+    pContainer.querySelector(".p-marca").value = item.marca || "";
+    pContainer.querySelector(".p-referencia").value = item.referencia || "";
+    pContainer.querySelector(".p-qt").value = item.qt || "";
+    pContainer.querySelector(".p-valor").value = fmtMoeda(item.valor) || "";
+
+    const listaSeries = pContainer.querySelector(".lista-series");
+    listaSeries.innerHTML = "";
+    const series = (item.n_serie || "").split(" | ");
+    series.forEach(s => {
+        const input = document.createElement("input");
+        input.className = "p-serie";
+        input.value = s;
+        input.style.cssText = "margin-bottom: 5px; width: 100%; border: 1px solid var(--borda); padding: 8px; border-radius: 6px;";
+        listaSeries.appendChild(input);
+    });
+
+    document.getElementById("btnSalvar").innerText = "Atualizar Registro";
+    document.getElementById("statusEdicao").classList.remove("hidden");
+}
+
+function atualizarDashboard(listaParaSomar) {
+    const elTotal = document.getElementById("txtTotal");
+    const elValorTotal = document.getElementById("txtValorTotal");
+    const elFin = document.getElementById("txtFinalizado");
+    const elAna = document.getElementById("txtAnalise");
+    const elAgu = document.getElementById("txtAguardando");
+    const elDen = document.getElementById("txtDenegada");
+    const elDev = document.getElementById("txtDevolvido ao Cliente");
+
+    let somaGeral = 0;
+    let qtdFin = 0;
+    let qtdAna = 0;
+    let qtdAgu = 0;
+    let qtdDen = 0;
+    let qtdDev = 0;
+
+    if (!listaParaSomar || listaParaSomar.length === 0) {
+        if (elTotal) elTotal.innerText = "0";
+        if (elValorTotal) elValorTotal.innerText = "R$ 0,00";
+        if (elFin) elFin.innerText = "0";
+        if (elAna) elAna.innerText = "0";
+        if (elAgu) elAgu.innerText = "0";
+        if (elDen) elDen.innerText = "0";
+        if (elDev) elDev.innerText = "0";
+        return;
+    }
+
+    for (let i = 0; i < listaParaSomar.length; i++) {
+        let item = listaParaSomar[i];
+        let st = String(item.status_proc || "").toUpperCase();
+
+        if (st === "FINALIZADO") {
+            qtdFin++;
+        } 
+        else if (st === "EM ANALISE") {
+            qtdAna++;
+        } 
+        else if (st.includes("AGUARDANDO")) {
+            qtdAgu++;
+        }
+        else if (st.includes("DENEGADA")) {
+            qtdDen++;
+        }
+        else if (st.includes("DEVOLVIDO AO CLIENTE")) {
+            qtdDev++;
+        }
+
+        let v = item.valor;
+        if (v !== undefined && v !== null && v !== "") {
+            let valorStr = String(v).trim();
+            valorStr = valorStr.replace(/[R$\s]/g, "");
+
+            if (valorStr.includes(",") && valorStr.includes(".")) {
+                valorStr = valorStr.replace(/\./g, "").replace(",", ".");
+            }
+            else if (valorStr.includes(",")) {
+                valorStr = valorStr.replace(",", ".");
+            }
+
+            let numero = parseFloat(valorStr);
+            if (!isNaN(numero)) {
+                somaGeral += numero;
+            }
+        }
+    }
+
+    if (elTotal) elTotal.innerText = listaParaSomar.length;
+    if (elFin) elFin.innerText = qtdFin;
+    if (elAna) elAna.innerText = qtdAna;
+    if (elAgu) elAgu.innerText = qtdAgu;
+    if (elDen) elDen.innerText = qtdDen;
+    if (elDev) elDev.innerText = qtdDev;
+
+    if (elValorTotal) {
+        elValorTotal.innerText = "R$ " + somaGeral.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+}
+
+    function abrirLista() { 
+        document.getElementById("formTela").classList.add("hidden"); 
+        document.getElementById("listaTela").classList.remove("hidden"); 
+        document.getElementById("contadores").classList.remove("hidden"); 
+        sincronizar(); 
+    }
+
+    function voltar() { 
+        document.getElementById("formTela").classList.remove("hidden"); 
+        document.getElementById("listaTela").classList.add("hidden"); 
+        document.getElementById("contadores").classList.add("hidden"); 
+    }
+
+   async function excluir(realIdx) { 
+    if(confirm("Deseja realmente excluir este registro?")) { 
+        showToast("Excluindo...");
+        await fetch(`${WEB_APP_URL}?action=delete&idx=${realIdx}`, {
+            method: "POST", 
+            mode: "no-cors"
+        }); 
+        
+        setTimeout(() => {
+            sincronizar();
+            showToast("Excluído com sucesso!");
+        }, 1000);
+    } 
+}
+
+    // Executa sincronização inicial com carregamento visual
+    sincronizar();
+</script>
+</body>
+</html>
